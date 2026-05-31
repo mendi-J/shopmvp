@@ -147,9 +147,11 @@ async function seed() {
   await prisma.user.deleteMany();
 
   console.log(`Creating ${products.length} products...`);
-  const createdProducts = await Promise.all(
-    products.map((p) => prisma.product.create({ data: p }))
-  );
+  const createdProducts = [];
+  for (const p of products) {
+    const created = await prisma.product.create({ data: p });
+    createdProducts.push(created);
+  }
   console.log(`✅ Created ${createdProducts.length} products`);
 
   const hashedPassword = await bcrypt.hash('password123', 12);
