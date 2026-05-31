@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 
 const generateOTP = () => {
+  if (process.env.DEFAULT_OTP) return process.env.DEFAULT_OTP;
   return crypto.randomInt(100000, 999999).toString();
 };
 
