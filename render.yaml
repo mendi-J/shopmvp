@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: shopmvp-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate
+    startCommand: node src/index.js
+    envVarGroups: []
