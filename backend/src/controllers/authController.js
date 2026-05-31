@@ -1,11 +1,9 @@
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
 const { validationResult } = require('express-validator');
 const { generateToken } = require('../utils/jwt');
 const { generateOTP, getOTPExpiry } = require('../utils/otp');
 const { sendOTPEmail } = require('../services/emailService');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const register = async (req, res, next) => {
   try {

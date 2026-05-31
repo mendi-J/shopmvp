@@ -1,8 +1,6 @@
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
 const { validationResult } = require('express-validator');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const getProfile = async (req, res, next) => {
   try {
