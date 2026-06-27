@@ -1,19 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authAPI } from '../../../lib/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTrackLens } from '../../../hooks/useTrackLens';
 import { Eye, EyeOff, Package } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const { track, page, identify } = useTrackLens();
   const [form, setForm] = useState({ identifier: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { page('Login', { url: window.location.href }); }, []);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -37,15 +41,19 @@ export default function LoginPage() {
       const res = await authAPI.login(payload);
       const { token, user } = res.data.data;
       login(user, token);
+      identify(user.id, { email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role });
+      track('Login Success', { userId: user.id, method: isPhone(form.identifier) ? 'phone' : 'email' });
       toast.success(`Welcome back, ${user.firstName}!`);
       router.push('/dashboard');
     } catch (error) {
       const err = error.response?.data;
       if (err?.data?.requiresVerification) {
+        track('Login Failed', { reason: 'unverified_account' });
         toast.error('Please verify your account first');
         router.push(`/auth/verify-otp?userId=${err.data.userId}`);
         return;
       }
+      track('Login Failed', { reason: err?.message || 'invalid_credentials' });
       toast.error(err?.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
@@ -118,9 +126,14 @@ export default function LoginPage() {
             <p className="text-xs text-indigo-600">Password: password123</p>
           </div>
 
-          <p className="text-center text-sm text-gray-500 mt-5">
+          <div className="mt-4 text-center">
+            <Link href="/auth/forgot-password" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+              Forgot your password?
+            </Link>
+          </div>
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-3">
             Don&apos;t have an account?{' '}
-            <Link href="/auth/register" className="text-indigo-600 font-semibold hover:underline">
+            <Link href="/auth/register" className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
               Sign up free
             </Link>
           </p>

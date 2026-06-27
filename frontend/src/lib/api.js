@@ -71,6 +71,83 @@ export const profileAPI = {
   get: () => api.get('/profile'),
   update: (data) => api.put('/profile', data),
   changePassword: (data) => api.put('/profile/password', data),
+  uploadAvatar: (formData) => api.post('/profile/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deleteAccount: (password) => api.delete('/profile', { data: { password } }),
 };
+
+export const newsletterAPI = {
+  subscribe: (email) => api.post('/newsletter/subscribe', { email }),
+};
+
+export const dashboardAPI = {
+  getStats: () => api.get('/dashboard/stats'),
+};
+
+export const notificationsAPI = {
+  list: (params) => api.get('/notifications', { params }),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.post('/notifications/read-all'),
+  dismiss: (id) => api.delete(`/notifications/${id}`),
+};
+
+export const settingsAPI = {
+  get: () => api.get('/settings'),
+  update: (data) => api.put('/settings', data),
+  listApiKeys: () => api.get('/settings/api-keys'),
+  generateApiKey: (name) => api.post('/settings/api-keys', { name }),
+  revokeApiKey: (id) => api.delete(`/settings/api-keys/${id}`),
+};
+
+export const searchAPI = {
+  search: (q, types) => api.get('/search', { params: { q, types: types?.join(',') } }),
+  getSaved: () => api.get('/search/saved'),
+  save: (query, filters) => api.post('/search/saved', { query, filters }),
+  deleteSaved: (id) => api.delete(`/search/saved/${id}`),
+};
+
+export const wishlistAPI = {
+  list: () => api.get('/wishlist'),
+  add: (productId) => api.post('/wishlist', { productId }),
+  remove: (productId) => api.delete(`/wishlist/${productId}`),
+};
+
+export const projectsAPI = {
+  list: (params) => api.get('/projects', { params }),
+  create: (data) => api.post('/projects', data),
+  getById: (id) => api.get(`/projects/${id}`),
+  update: (id, data) => api.put(`/projects/${id}`, data),
+  archive: (id) => api.patch(`/projects/${id}/archive`),
+  delete: (id) => api.delete(`/projects/${id}`),
+  listMembers: (id) => api.get(`/projects/${id}/members`),
+  inviteMember: (id, data) => api.post(`/projects/${id}/members`, data),
+  updateMemberRole: (id, userId, role) => api.put(`/projects/${id}/members/${userId}`, { role }),
+  removeMember: (id, userId) => api.delete(`/projects/${id}/members/${userId}`),
+};
+
+export const tasksAPI = {
+  list: (projectId, params) => api.get(`/projects/${projectId}/tasks`, { params }),
+  create: (projectId, data) => api.post(`/projects/${projectId}/tasks`, data),
+  getById: (projectId, taskId) => api.get(`/projects/${projectId}/tasks/${taskId}`),
+  update: (projectId, taskId, data) => api.put(`/projects/${projectId}/tasks/${taskId}`, data),
+  delete: (projectId, taskId) => api.delete(`/projects/${projectId}/tasks/${taskId}`),
+  reorder: (projectId, data) => api.patch(`/projects/${projectId}/tasks/reorder`, data),
+  // Comments
+  addComment: (projectId, taskId, body) => api.post(`/projects/${projectId}/tasks/${taskId}/comments`, { body }),
+  updateComment: (projectId, taskId, commentId, body) => api.put(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`, { body }),
+  deleteComment: (projectId, taskId, commentId) => api.delete(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`),
+  // Attachments
+  addAttachment: (projectId, taskId, formData) => api.post(`/projects/${projectId}/tasks/${taskId}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deleteAttachment: (projectId, taskId, attachmentId) => api.delete(`/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}`),
+  // Labels
+  listLabels: (projectId) => api.get(`/projects/${projectId}/tasks/labels/list`),
+  createLabel: (projectId, data) => api.post(`/projects/${projectId}/tasks/labels`, data),
+  deleteLabel: (projectId, labelId) => api.delete(`/projects/${projectId}/tasks/labels/${labelId}`),
+};
+
+// Extends authAPI with new endpoints
+Object.assign(authAPI, {
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
+});
 
 export default api;

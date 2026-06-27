@@ -1,8 +1,9 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const { generateToken } = require('../utils/jwt');
 const { generateOTP, getOTPExpiry } = require('../utils/otp');
-const { sendOTPEmail } = require('../services/emailService');
+const { sendOTPEmail, sendPasswordResetEmail } = require('../services/emailService');
 const prisma = require('../config/prisma');
 
 const register = async (req, res, next) => {
@@ -232,4 +233,85 @@ const resendOTP = async (req, res, next) => {
   }
 };
 
-module.exports = { register, verifyOTP, login, resendOTP };
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Always respond success to prevent email enumeration
+    if (!user) {
+      return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    // Invalidate previous tokens
+    await prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, used: false },
+      data: { used: true },
+    });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    await prisma.passwordResetToken.create({
+      data: { userId: user.id, token, expiresAt },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
+
+    await sendPasswordResetEmail(email, resetUrl, user.firstName);
+
+    res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ success: false, message: 'Token and password are required' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    }
+
+    const resetToken = await prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!resetToken || resetToken.used) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset link' });
+    }
+
+    if (new Date() > resetToken.expiresAt) {
+      return res.status(400).json({ success: false, message: 'Reset link has expired. Please request a new one.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    await prisma.user.update({
+      where: { id: resetToken.userId },
+      data: { password: hashedPassword },
+    });
+
+    await prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { used: true },
+    });
+
+    res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, verifyOTP, login, resendOTP, forgotPassword, resetPassword };
