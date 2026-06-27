@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authAPI } from '../../../lib/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTrackLens } from '../../../hooks/useTrackLens';
 import { ShieldCheck, RotateCcw } from 'lucide-react';
 
 function VerifyOTPContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
+  const { track, page } = useTrackLens();
 
   const userId = searchParams.get('userId');
   const contact = searchParams.get('contact');
@@ -26,6 +28,7 @@ function VerifyOTPContent() {
       router.push('/auth/register');
       return;
     }
+    page('Verify OTP', { url: window.location.href });
     inputRefs.current[0]?.focus();
     const timer = setInterval(() => {
       setCountdown((c) => (c > 0 ? c - 1 : 0));
@@ -76,9 +79,11 @@ function VerifyOTPContent() {
       const res = await authAPI.verifyOTP({ userId, code });
       const { token, user } = res.data.data;
       login(user, token);
+      track('OTP Verified', { userId, success: true });
       toast.success('Account verified! Welcome to ShopMVP!');
       router.push('/dashboard');
     } catch (error) {
+      track('OTP Verification Failed', { userId, reason: error.response?.data?.message || 'invalid_code' });
       toast.error(error.response?.data?.message || 'Invalid OTP. Please try again.');
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();

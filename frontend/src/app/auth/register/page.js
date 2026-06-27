@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authAPI } from '../../../lib/api';
+import { useTrackLens } from '../../../hooks/useTrackLens';
 import { Eye, EyeOff, Package } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { track, page } = useTrackLens();
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -19,6 +21,11 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [usePhone, setUsePhone] = useState(false);
+
+  useEffect(() => {
+    page('Register', { url: window.location.href });
+    track('Signup Started', { method: usePhone ? 'phone' : 'email' });
+  }, []);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -46,6 +53,7 @@ export default function RegisterPage() {
         ...(usePhone ? { phone: form.phone } : { email: form.email }),
       };
       const res = await authAPI.register(payload);
+      track('Signup Completed', { userId: res.data.data.userId, method: usePhone ? 'phone' : 'email' });
       toast.success('Account created! Check for your verification code.');
       router.push(
         `/auth/verify-otp?userId=${res.data.data.userId}&contact=${encodeURIComponent(

@@ -5,6 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ordersAPI } from '../../../lib/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTrackLens } from '../../../hooks/useTrackLens';
 import { CheckCircle, Package, MapPin, Loader, ArrowLeft } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -28,6 +29,7 @@ function OrderContent() {
   const isNew = searchParams.get('new') === 'true';
   const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { track, page } = useTrackLens();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,12 @@ function OrderContent() {
     if (isAuthenticated) {
       ordersAPI
         .getById(id)
-        .then((res) => setOrder(res.data.data))
+        .then((res) => {
+          const o = res.data.data;
+          setOrder(o);
+          page('Order Detail', { url: window.location.href, orderId: id });
+          track('Order Viewed', { orderId: id, orderNumber: o.orderNumber, status: o.status, total: parseFloat(o.totalAmount), isNew });
+        })
         .catch(() => router.push('/dashboard'))
         .finally(() => setLoading(false));
     }

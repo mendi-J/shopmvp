@@ -4,11 +4,13 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { productsAPI } from '../../lib/api';
 import ProductCard from '../../components/ProductCard';
+import { useTrackLens } from '../../hooks/useTrackLens';
 import { Search, ChevronLeft, ChevronRight, Loader, PackageSearch } from 'lucide-react';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { track, page } = useTrackLens();
 
   const q = searchParams.get('q') || '';
   const categoryParam = searchParams.get('category') || '';
@@ -45,6 +47,9 @@ function ProductsContent() {
   };
 
   useEffect(() => {
+    page('Products', { url: window.location.href, query: q, category: categoryParam });
+    if (q) track('Search Executed', { query: q, source: 'products_page' });
+    if (categoryParam) track('Filter Applied', { filter: categoryParam, source: 'products_page' });
     setSearchInput(q);
     setSelectedCategory(categoryParam);
     fetchProducts(1, categoryParam, q);
@@ -60,11 +65,13 @@ function ProductsContent() {
 
   const handleSearch = (e) => {
     e.preventDefault();
+    if (searchInput.trim()) track('Search Executed', { query: searchInput.trim(), source: 'search_bar' });
     navigate(searchInput.trim(), selectedCategory);
   };
 
   const handleCategory = (cat) => {
     const next = selectedCategory === cat ? '' : cat;
+    if (next) track('Filter Applied', { filter: next, source: 'category_filter' });
     navigate(q, next);
   };
 

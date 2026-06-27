@@ -7,16 +7,25 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTrackLens } from '../../hooks/useTrackLens';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Truck, Loader } from 'lucide-react';
 
 export default function CartPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { cart, summary, loading, updateItem, removeItem } = useCart();
   const router = useRouter();
+  const { track, page } = useTrackLens();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push('/auth/login');
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      page('Cart', { url: window.location.href });
+      track('Page Viewed', { page: 'cart' });
+    }
+  }, [authLoading, isAuthenticated]);
 
   const handleQuantityChange = async (productId, newQty) => {
     if (newQty < 1) return;
@@ -29,7 +38,9 @@ export default function CartPage() {
 
   const handleRemove = async (productId) => {
     try {
+      const item = cart?.items?.find((i) => i.product.id === productId);
       await removeItem(productId);
+      if (item) track('Remove From Cart', { productId, name: item.product.name, price: item.product.price, quantity: item.quantity });
       toast.success('Item removed from cart');
     } catch {
       toast.error('Failed to remove item');

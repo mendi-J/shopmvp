@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { paymentAPI } from '../../lib/api';
+import { useTrackLens } from '../../hooks/useTrackLens';
 import { CreditCard, Lock, ArrowLeft, Loader, CheckCircle } from 'lucide-react';
 
 function PaymentContent() {
@@ -13,6 +14,7 @@ function PaymentContent() {
   const { summary, fetchCart } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { track, page } = useTrackLens();
 
   const shipping = {
     shippingName: searchParams.get('shippingName') || '',
@@ -29,6 +31,10 @@ function PaymentContent() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push('/auth/login');
     if (!authLoading && !shipping.shippingName) router.push('/checkout');
+    if (!authLoading && isAuthenticated && shipping.shippingName) {
+      page('Payment', { url: window.location.href });
+      track('Payment Initiated', { total: summary.total, method: paymentMethod });
+    }
   }, [authLoading, isAuthenticated, shipping.shippingName, router]);
 
   const formatCardNumber = (val) => {
@@ -77,11 +83,14 @@ function PaymentContent() {
       };
 
       const res = await paymentAPI.process(payload);
+      track('Purchase Completed', { orderId: res.data.data.orderId, total: summary.total, method: paymentMethod });
       await fetchCart();
       toast.success('Payment successful! Order placed.');
       router.push(`/orders/${res.data.data.orderId}?new=true`);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Payment failed. Please try again.');
+      const msg = error.response?.data?.message || 'Payment failed. Please try again.';
+      track('Payment Failed', { reason: msg, method: paymentMethod, total: summary.total });
+      toast.error(msg);
     } finally {
       setProcessing(false);
     }

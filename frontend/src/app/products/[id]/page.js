@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { productsAPI } from '../../../lib/api';
 import { useCart } from '../../../contexts/CartContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTrackLens } from '../../../hooks/useTrackLens';
 import {
   ShoppingCart,
   ArrowLeft,
@@ -26,6 +27,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
+  const { track, page } = useTrackLens();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,12 @@ export default function ProductDetailPage() {
   useEffect(() => {
     productsAPI
       .getById(id)
-      .then((res) => setProduct(res.data.data))
+      .then((res) => {
+        const p = res.data.data;
+        setProduct(p);
+        page('Product Detail', { url: window.location.href, productId: id });
+        track('Product Viewed', { productId: p.id, name: p.name, category: p.category, price: parseFloat(p.price) });
+      })
       .catch(() => router.push('/products'))
       .finally(() => setLoading(false));
   }, [id, router]);
@@ -48,6 +55,7 @@ export default function ProductDetailPage() {
     try {
       setAdding(true);
       await addItem(product.id, quantity);
+      track('Add To Cart', { productId: product.id, name: product.name, price: parseFloat(product.price), quantity, category: product.category });
       toast.success(`${quantity} × ${product.name} added to cart!`);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add to cart');

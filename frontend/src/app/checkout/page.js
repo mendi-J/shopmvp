@@ -6,12 +6,14 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import { useTrackLens } from '../../hooks/useTrackLens';
 import { ArrowLeft, MapPin, Truck, Loader } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const { cart, summary, loading: cartLoading } = useCart();
   const router = useRouter();
+  const { track, page } = useTrackLens();
 
   const [form, setForm] = useState({
     shippingName: '',
@@ -24,6 +26,13 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push('/auth/login');
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      page('Checkout', { url: window.location.href });
+      track('Checkout Started', { itemCount: cart?.items?.length || 0, total: summary?.total || 0 });
+    }
+  }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
     if (user) {

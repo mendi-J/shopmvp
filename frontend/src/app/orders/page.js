@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ordersAPI } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTrackLens } from '../../hooks/useTrackLens';
 import { Package, ArrowRight, Loader, ShoppingBag } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -18,12 +19,20 @@ const STATUS_COLORS = {
 export default function OrdersPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { track, page } = useTrackLens();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push('/auth/login');
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      page('Orders', { url: window.location.href });
+      track('Page Viewed', { page: 'orders' });
+    }
+  }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
