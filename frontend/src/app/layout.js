@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '../contexts/AuthContext';
 import { CartProvider } from '../contexts/CartContext';
 import Navbar from '../components/Navbar';
+import TrackLensProvider from '../components/TrackLensProvider';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={inter.className}>
+        <TrackLensProvider />
         <AuthProvider>
           <CartProvider>
             <Navbar />
