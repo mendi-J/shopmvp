@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { Package, Eye, EyeOff, Lock } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
 export default function AdminLoginPage() {
   const router = useRouter();

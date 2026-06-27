@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Users,
 } from 'lucide-react';
 
 function AdminSidebar({ collapsed, onToggle }) {
@@ -26,6 +27,8 @@ function AdminSidebar({ collapsed, onToggle }) {
   const navItems = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+    { href: '/admin/products', label: 'Products', icon: Package },
+    { href: '/admin/users', label: 'Users', icon: Users },
   ];
 
   return (

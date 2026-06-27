@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const prisma = require('../config/prisma');
+const { sendOrderConfirmationEmail } = require('../services/emailService');
 
 const TAX_RATE = 0.1;
 const DELIVERY_FEE = 4.99;
@@ -132,6 +133,18 @@ const processPayment = async (req, res, next) => {
 
       return newOrder;
     });
+
+    // Send confirmation email (non-blocking)
+    if (req.user.email) {
+      sendOrderConfirmationEmail(req.user.email, req.user.firstName, {
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        shippingName,
+        shippingAddress,
+        shippingCity,
+        items: order.items,
+      }).catch(() => {});
+    }
 
     res.json({
       success: true,

@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { sendOrderStatusEmail } = require('../services/emailService');
 
 const getDashboard = async (req, res, next) => {
   try {
@@ -243,6 +244,11 @@ const updateOrderStatus = async (req, res, next) => {
       },
     });
 
+    // Email customer about status change (non-blocking)
+    if (updated.user?.email) {
+      sendOrderStatusEmail(updated.user.email, updated.user.firstName, updated.orderNumber, status).catch(() => {});
+    }
+
     res.json({
       success: true,
       message: `Order marked as ${status.toLowerCase()}`,
@@ -257,4 +263,164 @@ const updateOrderStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { getDashboard, getAllOrders, getOrderById, updateOrderStatus };
+// ─── Products ──────────────────────────────────────────────────────────────
+
+const listProducts = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const search = req.query.search;
+    const active = req.query.active;
+    const skip = (page - 1) * limit;
+
+    const where = {};
+    if (search) where.OR = [{ name: { contains: search, mode: 'insensitive' } }, { category: { contains: search, mode: 'insensitive' } }];
+    if (active === 'true') where.isActive = true;
+    if (active === 'false') where.isActive = false;
+
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where, skip, take: limit, orderBy: { createdAt: 'desc' },
+        select: { id: true, name: true, description: true, price: true, stock: true, category: true, image: true, isActive: true, createdAt: true, _count: { select: { orderItems: true } } },
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        products: products.map((p) => ({ ...p, price: parseFloat(p.price) })),
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total, hasPrev: page > 1 },
+      },
+    });
+  } catch (error) { next(error); }
+};
+
+const createProduct = async (req, res, next) => {
+  try {
+    const { name, description, price, stock, category, image } = req.body;
+    if (!name?.trim() || !description?.trim() || !price || !category?.trim()) {
+      return res.status(400).json({ success: false, message: 'name, description, price and category are required' });
+    }
+    const product = await prisma.product.create({
+      data: { name: name.trim(), description: description.trim(), price: parseFloat(price), stock: parseInt(stock) || 0, category: category.trim(), image: image || null },
+    });
+    res.status(201).json({ success: true, data: { ...product, price: parseFloat(product.price) } });
+  } catch (error) { next(error); }
+};
+
+const updateProduct = async (req, res, next) => {
+  try {
+    const { name, description, price, stock, category, image } = req.body;
+    const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    const updated = await prisma.product.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name: name.trim() }),
+        ...(description && { description: description.trim() }),
+        ...(price !== undefined && { price: parseFloat(price) }),
+        ...(stock !== undefined && { stock: parseInt(stock) }),
+        ...(category && { category: category.trim() }),
+        ...(image !== undefined && { image: image || null }),
+      },
+    });
+    res.json({ success: true, data: { ...updated, price: parseFloat(updated.price) } });
+  } catch (error) { next(error); }
+};
+
+const toggleProduct = async (req, res, next) => {
+  try {
+    const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+    const updated = await prisma.product.update({ where: { id: req.params.id }, data: { isActive: !product.isActive } });
+    res.json({ success: true, data: { id: updated.id, isActive: updated.isActive } });
+  } catch (error) { next(error); }
+};
+
+const deleteProduct = async (req, res, next) => {
+  try {
+    const activeOrders = await prisma.orderItem.count({
+      where: { productId: req.params.id, order: { status: { notIn: ['DELIVERED', 'CANCELLED'] } } },
+    });
+    if (activeOrders > 0) return res.status(409).json({ success: false, message: 'Cannot delete a product with active orders' });
+    await prisma.product.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: 'Product deleted' });
+  } catch (error) { next(error); }
+};
+
+// ─── Users ────────────────────────────────────────────────────────────────
+
+const listUsers = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const search = req.query.search;
+    const role = req.query.role;
+    const skip = (page - 1) * limit;
+
+    const where = {};
+    if (search) where.OR = [
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+    ];
+    if (role === 'ADMIN' || role === 'USER') where.role = role;
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where, skip, take: limit, orderBy: { createdAt: 'desc' },
+        select: {
+          id: true, firstName: true, lastName: true, email: true, phone: true,
+          role: true, isVerified: true, avatar: true, createdAt: true,
+          _count: { select: { orders: true } },
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total, hasPrev: page > 1 },
+      },
+    });
+  } catch (error) { next(error); }
+};
+
+const getUser = async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true, firstName: true, lastName: true, email: true, phone: true,
+        role: true, isVerified: true, avatar: true, createdAt: true,
+        orders: { orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, orderNumber: true, totalAmount: true, status: true, createdAt: true } },
+        _count: { select: { orders: true, wishlist: true } },
+      },
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const spend = await prisma.order.aggregate({ where: { userId: req.params.id, paymentStatus: 'COMPLETED' }, _sum: { totalAmount: true } });
+    res.json({ success: true, data: { ...user, totalSpend: parseFloat(spend._sum.totalAmount || 0) } });
+  } catch (error) { next(error); }
+};
+
+const toggleUserRole = async (req, res, next) => {
+  try {
+    if (req.params.id === req.user.id) return res.status(400).json({ success: false, message: 'Cannot change your own role' });
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
+    await prisma.user.update({ where: { id: req.params.id }, data: { role: newRole } });
+    res.json({ success: true, data: { id: user.id, role: newRole } });
+  } catch (error) { next(error); }
+};
+
+module.exports = {
+  getDashboard, getAllOrders, getOrderById, updateOrderStatus,
+  listProducts, createProduct, updateProduct, toggleProduct, deleteProduct,
+  listUsers, getUser, toggleUserRole,
+};
