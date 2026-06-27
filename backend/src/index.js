@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const cartRoutes = require('./routes/cart');
@@ -13,16 +14,25 @@ const paymentRoutes = require('./routes/payment');
 const orderRoutes = require('./routes/orders');
 const profileRoutes = require('./routes/profile');
 const adminRoutes = require('./routes/admin');
+const newsletterRoutes = require('./routes/newsletter');
+const dashboardRoutes = require('./routes/dashboard');
+const notificationRoutes = require('./routes/notifications');
+const settingsRoutes = require('./routes/settings');
+const searchRoutes = require('./routes/search');
+const wishlistRoutes = require('./routes/wishlist');
+const projectRoutes = require('./routes/projects');
+const taskRoutes = require('./routes/tasks');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -52,6 +62,14 @@ app.use('/api/v1/payment', paymentRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/profile', profileRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/newsletter', newsletterRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/settings', settingsRoutes);
+app.use('/api/v1/search', searchRoutes);
+app.use('/api/v1/wishlist', wishlistRoutes);
+app.use('/api/v1/projects', projectRoutes);
+app.use('/api/v1/projects/:projectId/tasks', taskRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });

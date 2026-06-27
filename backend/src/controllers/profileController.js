@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const { validationResult } = require('express-validator');
+const streamifier = require('streamifier');
 const prisma = require('../config/prisma');
+const cloudinary = require('../config/cloudinary');
 
 const getProfile = async (req, res, next) => {
   try {
@@ -12,6 +14,7 @@ const getProfile = async (req, res, next) => {
         phone: true,
         firstName: true,
         lastName: true,
+        avatar: true,
         isVerified: true,
         createdAt: true,
         _count: { select: { orders: true } },
@@ -101,4 +104,52 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, changePassword };
+const uploadAvatar = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'shopmvp/avatars', public_id: `avatar_${req.user.id}`, overwrite: true, transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }] },
+        (error, result) => (error ? reject(error) : resolve(result))
+      );
+      streamifier.createReadStream(req.file.buffer).pipe(stream);
+    });
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { avatar: result.secure_url },
+      select: { id: true, avatar: true },
+    });
+
+    res.json({ success: true, message: 'Avatar updated', data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteAccount = async (req, res, next) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Password is required to delete your account' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const isValid = await bcrypt.compare(password, user.password);
+
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Incorrect password' });
+    }
+
+    await prisma.user.delete({ where: { id: req.user.id } });
+
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getProfile, updateProfile, changePassword, uploadAvatar, deleteAccount };

@@ -1,6 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { register, verifyOTP, login, resendOTP } = require('../controllers/authController');
+const { register, verifyOTP, login, resendOTP, forgotPassword, resetPassword } = require('../controllers/authController');
 
 const router = express.Router();
 
@@ -24,5 +24,14 @@ router.post('/login', [
 ], login);
 
 router.post('/resend-otp', resendOTP);
+
+router.post('/forgot-password', [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+], forgotPassword);
+
+router.post('/reset-password', [
+  body('token').notEmpty().withMessage('Token is required'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+], resetPassword);
 
 module.exports = router;
