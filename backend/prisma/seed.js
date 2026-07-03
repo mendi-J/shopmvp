@@ -147,7 +147,7 @@ async function seed() {
   await prisma.project.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.savedSearch.deleteMany();
-  await prisma.wishlistItem.deleteMany();
+  await prisma.wishlist.deleteMany();
   await prisma.apiKey.deleteMany();
   await prisma.userSettings.deleteMany();
   await prisma.passwordResetToken.deleteMany();
