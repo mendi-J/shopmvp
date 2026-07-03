@@ -138,6 +138,20 @@ async function seed() {
   console.log('🌱 Starting database seed...\n');
 
   console.log('Clearing existing data...');
+  await prisma.taskAttachment.deleteMany();
+  await prisma.taskComment.deleteMany();
+  await prisma.taskLabelMap.deleteMany();
+  await prisma.taskLabel.deleteMany();
+  await prisma.task.deleteMany();
+  await prisma.projectMember.deleteMany();
+  await prisma.project.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.savedSearch.deleteMany();
+  await prisma.wishlistItem.deleteMany();
+  await prisma.apiKey.deleteMany();
+  await prisma.userSettings.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
+  await prisma.newsletterSubscriber.deleteMany();
   await prisma.oTP.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
