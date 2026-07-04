@@ -20,6 +20,10 @@ export default function TrackLensProvider() {
         apiUrl,
         environment: process.env.NEXT_PUBLIC_TRACKLENS_ENV || 'production',
         autoTrack: true,
+        // Enable SDK console diagnostics (upload sizes, request lifecycle, replay
+        // batches) via env flag so it can be turned on per-deployment without a
+        // code change. Set NEXT_PUBLIC_TRACKLENS_DEBUG=true in Vercel to activate.
+        debug: process.env.NEXT_PUBLIC_TRACKLENS_DEBUG === 'true',
       });
     }).catch((err) => console.error('[TrackLens] init failed:', err));
   }, []);
